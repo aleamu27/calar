@@ -68,27 +68,20 @@ export async function getKPIMetrics(range: DateRange): Promise<KPIMetrics> {
   const conversionRate =
     totalVisitors > 0 ? (totalLeads / totalVisitors) * 100 : 0;
 
-  // Top channel by lead count
-  const topChannelQuery = db
-    .select({
-      source: attributions.utmSource,
-      count: count(),
-    })
-    .from(leads)
-    .innerJoin(attributions, eq(leads.visitorId, attributions.visitorId))
-    .where(
-      and(
-        isNotNull(attributions.utmSource),
-        dateFilter ? gte(leads.convertedAt, dateFilter) : undefined
-      )
-    )
-    .groupBy(attributions.utmSource)
-    .orderBy(desc(count()))
-    .limit(1);
+  // Top channel by lead count - use raw SQL to avoid GROUP BY issues
+  const topChannelResult = await db.execute<{ source: string; count: string }>(sql`
+    SELECT a.utm_source as source, COUNT(*)::text as count
+    FROM leads l
+    INNER JOIN attributions a ON l.visitor_id = a.visitor_id
+    WHERE a.utm_source IS NOT NULL
+    ${dateFilter ? sql`AND l.converted_at >= ${dateFilter}` : sql``}
+    GROUP BY a.utm_source
+    ORDER BY COUNT(*) DESC
+    LIMIT 1
+  `);
 
-  const [topChannelResult] = await topChannelQuery;
-  const topChannel = topChannelResult?.source
-    ? { source: topChannelResult.source, count: topChannelResult.count }
+  const topChannel = topChannelResult.rows[0]?.source
+    ? { source: topChannelResult.rows[0].source, count: parseInt(topChannelResult.rows[0].count, 10) }
     : null;
 
   // Calculate change from previous period
@@ -209,23 +202,24 @@ export async function getChannelPerformance(
 ): Promise<ChannelPerformance[]> {
   const dateFilter = getDateFilter(range);
 
-  const channelData = await db
-    .select({
-      source: sql<string>`COALESCE(${attributions.utmSource}, 'Direct')`,
-      leadCount: count(),
-    })
-    .from(leads)
-    .leftJoin(attributions, eq(leads.visitorId, attributions.visitorId))
-    .where(dateFilter ? gte(leads.convertedAt, dateFilter) : undefined)
-    .groupBy(sql`COALESCE(${attributions.utmSource}, 'Direct')`)
-    .orderBy(desc(count()));
+  // Use raw SQL to avoid GROUP BY issues with Drizzle
+  const channelData = await db.execute<{ source: string; lead_count: string }>(sql`
+    SELECT
+      COALESCE(a.utm_source, 'Direct') as source,
+      COUNT(*)::text as lead_count
+    FROM leads l
+    LEFT JOIN attributions a ON l.visitor_id = a.visitor_id
+    ${dateFilter ? sql`WHERE l.converted_at >= ${dateFilter}` : sql``}
+    GROUP BY COALESCE(a.utm_source, 'Direct')
+    ORDER BY COUNT(*) DESC
+  `);
 
-  const total = channelData.reduce((sum, ch) => sum + ch.leadCount, 0);
+  const total = channelData.rows.reduce((sum, ch) => sum + parseInt(ch.lead_count, 10), 0);
 
-  return channelData.map((channel) => ({
+  return channelData.rows.map((channel) => ({
     source: channel.source,
-    leadCount: channel.leadCount,
-    percentage: total > 0 ? Math.round((channel.leadCount / total) * 100) : 0,
+    leadCount: parseInt(channel.lead_count, 10),
+    percentage: total > 0 ? Math.round((parseInt(channel.lead_count, 10) / total) * 100) : 0,
   }));
 }
 
