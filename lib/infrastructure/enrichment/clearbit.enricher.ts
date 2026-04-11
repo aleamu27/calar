@@ -81,7 +81,7 @@ export class ClearbitCompanyEnricher implements ICompanyEnricher {
         location: this.formatLocation(data),
         confidence: 90,
         provider: this.providerName,
-        raw: data,
+        raw: data as unknown as Record<string, unknown>,
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';

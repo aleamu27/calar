@@ -88,7 +88,7 @@ export class AbstractApiEnricher implements ICompanyEnricher {
         location: this.formatLocation(data),
         confidence: this.calculateConfidence(data),
         provider: this.providerName,
-        raw: data,
+        raw: data as unknown as Record<string, unknown>,
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
