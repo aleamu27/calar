@@ -13,7 +13,7 @@ import type {
 import type { SignalType, SignalPayload } from '../../infrastructure/db/schema';
 import { db } from '../../infrastructure/db/client';
 import { signals, leads } from '../../infrastructure/db/schema';
-import { getTenantContext } from '../../core/context/tenant.context';
+import { requireTenantContext } from '../../core/context/tenant.context';
 import {
   ConsoleSignalDispatcher,
   ResendSignalDispatcher,
@@ -72,12 +72,12 @@ export class SignalService {
     type: SignalType,
     payload: SignalPayload
   ): Promise<string> {
-    const { tenantId } = getTenantContext();
+    const tenant = requireTenantContext();
 
     const [signal] = await db
       .insert(signals)
       .values({
-        tenantId,
+        tenantId: tenant.id,
         leadId,
         type,
         payload,
@@ -93,13 +93,13 @@ export class SignalService {
    * Updates signal status based on dispatch results.
    */
   async dispatchSignal(signalId: string): Promise<SignalDispatchResult[]> {
-    const { tenantId } = getTenantContext();
+    const tenant = requireTenantContext();
 
     // Fetch the signal
     const [signalRecord] = await db
       .select()
       .from(signals)
-      .where(and(eq(signals.id, signalId), eq(signals.tenantId, tenantId)))
+      .where(and(eq(signals.id, signalId), eq(signals.tenantId, tenant.id)))
       .limit(1);
 
     if (!signalRecord) {
