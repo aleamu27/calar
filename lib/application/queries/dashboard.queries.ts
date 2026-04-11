@@ -242,18 +242,21 @@ export async function getLeadTrend(range: DateRange): Promise<LeadTrend[]> {
   const dateFilter = getDateFilter(range);
   const groupBy = range === '7d' ? 'day' : range === '30d' ? 'day' : 'week';
 
-  const dateFormat =
-    groupBy === 'day' ? 'YYYY-MM-DD' : 'YYYY-"W"IW';
+  const dateFormat = groupBy === 'day' ? 'YYYY-MM-DD' : 'YYYY-"W"IW';
 
-  const trendData = await db
-    .select({
-      date: sql<string>`TO_CHAR(${leads.convertedAt}, ${dateFormat})`,
-      count: count(),
-    })
-    .from(leads)
-    .where(dateFilter ? gte(leads.convertedAt, dateFilter) : undefined)
-    .groupBy(sql`TO_CHAR(${leads.convertedAt}, ${dateFormat})`)
-    .orderBy(sql`TO_CHAR(${leads.convertedAt}, ${dateFormat})`);
+  // Use raw SQL to ensure consistent date expression
+  const trendData = await db.execute<{ date: string; count: string }>(sql`
+    SELECT
+      TO_CHAR(converted_at, ${dateFormat}) as date,
+      COUNT(*)::text as count
+    FROM leads
+    ${dateFilter ? sql`WHERE converted_at >= ${dateFilter}` : sql``}
+    GROUP BY TO_CHAR(converted_at, ${dateFormat})
+    ORDER BY TO_CHAR(converted_at, ${dateFormat})
+  `);
 
-  return trendData;
+  return trendData.rows.map((row) => ({
+    date: row.date,
+    count: parseInt(row.count, 10),
+  }));
 }
