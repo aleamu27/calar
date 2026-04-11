@@ -1,6 +1,7 @@
 /**
  * Oracle Dashboard - Main Page
  * Server Component that fetches and displays analytics data.
+ * v1.1 - Fixed database connection
  */
 
 import { Suspense } from 'react';
