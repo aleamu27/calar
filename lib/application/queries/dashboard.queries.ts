@@ -139,7 +139,7 @@ async function calculatePeriodChange(range: DateRange): Promise<number> {
 // ATTRIBUTION TABLE QUERY
 // ============================================================================
 
-export interface LeadWithAttribution {
+export interface DashboardLead {
   id: string;
   email: string;
   name: string | null;
@@ -156,7 +156,7 @@ export async function getLeadsWithAttribution(
   range: DateRange,
   limit = 50,
   offset = 0
-): Promise<{ data: LeadWithAttribution[]; total: number }> {
+): Promise<{ data: DashboardLead[]; total: number }> {
   const dateFilter = getDateFilter(range);
 
   const baseCondition = dateFilter
