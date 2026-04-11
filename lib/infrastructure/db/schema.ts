@@ -100,10 +100,10 @@ export const tenants = pgTable(
       .defaultNow()
       .$onUpdate(() => new Date()),
   },
-  (table) => [
-    uniqueIndex('tenants_slug_idx').on(table.slug),
-    index('tenants_domain_idx').on(table.domain),
-  ]
+  (table) => ({
+    slugIdx: uniqueIndex('tenants_slug_idx').on(table.slug),
+    domainIdx: index('tenants_domain_idx').on(table.domain),
+  })
 );
 
 // ============================================================================
@@ -129,12 +129,12 @@ export const apiKeys = pgTable(
       .defaultNow(),
     revokedAt: timestamp('revoked_at', { withTimezone: true }),
   },
-  (table) => [
-    uniqueIndex('api_keys_key_hash_idx').on(table.keyHash),
-    index('api_keys_tenant_id_idx').on(table.tenantId),
-    index('api_keys_key_prefix_idx').on(table.keyPrefix),
-    index('api_keys_status_idx').on(table.status),
-  ]
+  (table) => ({
+    keyHashIdx: uniqueIndex('api_keys_key_hash_idx').on(table.keyHash),
+    tenantIdIdx: index('api_keys_tenant_id_idx').on(table.tenantId),
+    keyPrefixIdx: index('api_keys_key_prefix_idx').on(table.keyPrefix),
+    statusIdx: index('api_keys_status_idx').on(table.status),
+  })
 );
 
 // ============================================================================
@@ -163,11 +163,11 @@ export const visitors = pgTable(
       .defaultNow()
       .$onUpdate(() => new Date()),
   },
-  (table) => [
-    uniqueIndex('visitors_tenant_uuid_idx').on(table.tenantId, table.visitorUuid),
-    index('visitors_tenant_id_idx').on(table.tenantId),
-    index('visitors_first_seen_at_idx').on(table.firstSeenAt),
-  ]
+  (table) => ({
+    tenantUuidIdx: uniqueIndex('visitors_tenant_uuid_idx').on(table.tenantId, table.visitorUuid),
+    tenantIdIdx: index('visitors_tenant_id_idx').on(table.tenantId),
+    firstSeenAtIdx: index('visitors_first_seen_at_idx').on(table.firstSeenAt),
+  })
 );
 
 // ============================================================================
@@ -198,13 +198,13 @@ export const attributions = pgTable(
       .notNull()
       .defaultNow(),
   },
-  (table) => [
-    index('attributions_tenant_id_idx').on(table.tenantId),
-    index('attributions_visitor_id_idx').on(table.visitorId),
-    index('attributions_utm_source_idx').on(table.tenantId, table.utmSource),
-    index('attributions_utm_campaign_idx').on(table.tenantId, table.utmCampaign),
-    index('attributions_captured_at_idx').on(table.capturedAt),
-  ]
+  (table) => ({
+    tenantIdIdx: index('attributions_tenant_id_idx').on(table.tenantId),
+    visitorIdIdx: index('attributions_visitor_id_idx').on(table.visitorId),
+    utmSourceIdx: index('attributions_utm_source_idx').on(table.tenantId, table.utmSource),
+    utmCampaignIdx: index('attributions_utm_campaign_idx').on(table.tenantId, table.utmCampaign),
+    capturedAtIdx: index('attributions_captured_at_idx').on(table.capturedAt),
+  })
 );
 
 // ============================================================================
@@ -232,13 +232,13 @@ export const pageViews = pgTable(
       .notNull()
       .defaultNow(),
   },
-  (table) => [
-    index('page_views_tenant_id_idx').on(table.tenantId),
-    index('page_views_visitor_id_idx').on(table.visitorId),
-    index('page_views_path_idx').on(table.tenantId, table.path),
-    index('page_views_viewed_at_idx').on(table.viewedAt),
-    index('page_views_is_high_value_idx').on(table.tenantId, table.isHighValue),
-  ]
+  (table) => ({
+    tenantIdIdx: index('page_views_tenant_id_idx').on(table.tenantId),
+    visitorIdIdx: index('page_views_visitor_id_idx').on(table.visitorId),
+    pathIdx: index('page_views_path_idx').on(table.tenantId, table.path),
+    viewedAtIdx: index('page_views_viewed_at_idx').on(table.viewedAt),
+    isHighValueIdx: index('page_views_is_high_value_idx').on(table.tenantId, table.isHighValue),
+  })
 );
 
 // ============================================================================
@@ -276,13 +276,13 @@ export const leads = pgTable(
       .defaultNow()
       .$onUpdate(() => new Date()),
   },
-  (table) => [
-    uniqueIndex('leads_tenant_email_idx').on(table.tenantId, table.email),
-    index('leads_tenant_id_idx').on(table.tenantId),
-    index('leads_visitor_id_idx').on(table.visitorId),
-    index('leads_converted_at_idx').on(table.tenantId, table.convertedAt),
-    index('leads_score_idx').on(table.tenantId, table.score),
-  ]
+  (table) => ({
+    tenantEmailIdx: uniqueIndex('leads_tenant_email_idx').on(table.tenantId, table.email),
+    tenantIdIdx: index('leads_tenant_id_idx').on(table.tenantId),
+    visitorIdIdx: index('leads_visitor_id_idx').on(table.visitorId),
+    convertedAtIdx: index('leads_converted_at_idx').on(table.tenantId, table.convertedAt),
+    scoreIdx: index('leads_score_idx').on(table.tenantId, table.score),
+  })
 );
 
 // ============================================================================
@@ -312,13 +312,13 @@ export const signals = pgTable(
       .defaultNow()
       .$onUpdate(() => new Date()),
   },
-  (table) => [
-    index('signals_tenant_id_idx').on(table.tenantId),
-    index('signals_lead_id_idx').on(table.leadId),
-    index('signals_type_idx').on(table.tenantId, table.type),
-    index('signals_status_idx').on(table.tenantId, table.status),
-    index('signals_created_at_idx').on(table.createdAt),
-  ]
+  (table) => ({
+    tenantIdIdx: index('signals_tenant_id_idx').on(table.tenantId),
+    leadIdIdx: index('signals_lead_id_idx').on(table.leadId),
+    typeIdx: index('signals_type_idx').on(table.tenantId, table.type),
+    statusIdx: index('signals_status_idx').on(table.tenantId, table.status),
+    createdAtIdx: index('signals_created_at_idx').on(table.createdAt),
+  })
 );
 
 // ============================================================================
@@ -348,11 +348,11 @@ export const integrations = pgTable(
       .defaultNow()
       .$onUpdate(() => new Date()),
   },
-  (table) => [
-    index('integrations_tenant_id_idx').on(table.tenantId),
-    index('integrations_type_idx').on(table.tenantId, table.type),
-    index('integrations_status_idx').on(table.tenantId, table.status),
-  ]
+  (table) => ({
+    tenantIdIdx: index('integrations_tenant_id_idx').on(table.tenantId),
+    typeIdx: index('integrations_type_idx').on(table.tenantId, table.type),
+    statusIdx: index('integrations_status_idx').on(table.tenantId, table.status),
+  })
 );
 
 // ============================================================================
@@ -382,13 +382,13 @@ export const integrationLogs = pgTable(
       .notNull()
       .defaultNow(),
   },
-  (table) => [
-    index('integration_logs_tenant_id_idx').on(table.tenantId),
-    index('integration_logs_integration_id_idx').on(table.integrationId),
-    index('integration_logs_lead_id_idx').on(table.leadId),
-    index('integration_logs_status_idx').on(table.status),
-    index('integration_logs_created_at_idx').on(table.createdAt),
-  ]
+  (table) => ({
+    tenantIdIdx: index('integration_logs_tenant_id_idx').on(table.tenantId),
+    integrationIdIdx: index('integration_logs_integration_id_idx').on(table.integrationId),
+    leadIdIdx: index('integration_logs_lead_id_idx').on(table.leadId),
+    statusIdx: index('integration_logs_status_idx').on(table.status),
+    createdAtIdx: index('integration_logs_created_at_idx').on(table.createdAt),
+  })
 );
 
 // ============================================================================
@@ -417,13 +417,13 @@ export const embeddings = pgTable(
       .defaultNow()
       .$onUpdate(() => new Date()),
   },
-  (table) => [
-    index('embeddings_tenant_id_idx').on(table.tenantId),
-    index('embeddings_type_idx').on(table.tenantId, table.type),
-    index('embeddings_source_id_idx').on(table.sourceId),
+  (table) => ({
+    tenantIdIdx: index('embeddings_tenant_id_idx').on(table.tenantId),
+    typeIdx: index('embeddings_type_idx').on(table.tenantId, table.type),
+    sourceIdIdx: index('embeddings_source_id_idx').on(table.sourceId),
     // HNSW index for fast similarity search (add via migration)
-    // index('embeddings_vector_idx').using('hnsw', table.embedding.op('vector_cosine_ops')),
-  ]
+    // vectorIdx: index('embeddings_vector_idx').using('hnsw', table.embedding.op('vector_cosine_ops')),
+  })
 );
 
 // ============================================================================
