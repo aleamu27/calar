@@ -4,7 +4,7 @@
  * All queries are optimized for dashboard performance.
  */
 
-import { sql, eq, gte, and, count, countDistinct, desc } from 'drizzle-orm';
+import { sql, eq, gte, and, count, countDistinct, desc, isNotNull } from 'drizzle-orm';
 import { db } from '../../infrastructure/db/client';
 import { visitors, attributions, leads } from '../../infrastructure/db/schema';
 
@@ -78,7 +78,7 @@ export async function getKPIMetrics(range: DateRange): Promise<KPIMetrics> {
     .innerJoin(attributions, eq(leads.visitorId, attributions.visitorId))
     .where(
       and(
-        attributions.utmSource !== null,
+        isNotNull(attributions.utmSource),
         dateFilter ? gte(leads.convertedAt, dateFilter) : undefined
       )
     )
