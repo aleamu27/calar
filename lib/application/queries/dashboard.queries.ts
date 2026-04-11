@@ -1,11 +1,15 @@
 /**
- * Dashboard Queries
+ * Dashboard Queries v2.0
  * Server-side data aggregation for the Oracle Dashboard.
  * All queries use raw SQL to avoid ORM-related GROUP BY issues.
+ * BUILD: 2026-04-11-v2
  */
 
 import { sql } from 'drizzle-orm';
 import { db } from '../../infrastructure/db/client';
+
+// Version marker for debugging deployment issues
+console.log('[Dashboard Queries] Version 2.0 - Raw SQL only');
 
 export type DateRange = '7d' | '30d' | '90d' | 'all';
 
