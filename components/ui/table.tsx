@@ -106,12 +106,14 @@ interface TableCellProps {
   children: ReactNode;
   className?: string;
   muted?: boolean;
+  colSpan?: number;
 }
 
 export function TableCell({
   children,
   className = '',
   muted = false,
+  colSpan,
 }: TableCellProps) {
   return (
     <td
@@ -120,6 +122,7 @@ export function TableCell({
         ${muted ? 'text-slate-500' : 'text-slate-300'}
         ${className}
       `}
+      colSpan={colSpan}
     >
       {children}
     </td>
