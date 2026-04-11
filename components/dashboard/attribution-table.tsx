@@ -13,10 +13,10 @@ import {
 } from '../ui/table';
 import { Badge, getSourceVariant } from '../ui/badge';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
-import type { LeadWithAttribution } from '@/lib/application/queries/dashboard.queries';
+import type { DashboardLead } from '@/lib/application/queries/dashboard.queries';
 
 interface AttributionTableProps {
-  leads: LeadWithAttribution[];
+  leads: DashboardLead[];
   total: number;
 }
 
