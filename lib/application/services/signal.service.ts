@@ -3,7 +3,7 @@
  * Manages signal creation and dispatch to notification channels.
  */
 
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import type {
   ISignalDispatcher,
   Signal,
@@ -13,6 +13,7 @@ import type {
 import type { SignalType, SignalPayload } from '../../infrastructure/db/schema';
 import { db } from '../../infrastructure/db/client';
 import { signals, leads } from '../../infrastructure/db/schema';
+import { getTenantContext } from '../../core/context/tenant.context';
 import {
   ConsoleSignalDispatcher,
   ResendSignalDispatcher,
@@ -71,9 +72,12 @@ export class SignalService {
     type: SignalType,
     payload: SignalPayload
   ): Promise<string> {
+    const { tenantId } = getTenantContext();
+
     const [signal] = await db
       .insert(signals)
       .values({
+        tenantId,
         leadId,
         type,
         payload,
@@ -89,11 +93,13 @@ export class SignalService {
    * Updates signal status based on dispatch results.
    */
   async dispatchSignal(signalId: string): Promise<SignalDispatchResult[]> {
+    const { tenantId } = getTenantContext();
+
     // Fetch the signal
     const [signalRecord] = await db
       .select()
       .from(signals)
-      .where(eq(signals.id, signalId))
+      .where(and(eq(signals.id, signalId), eq(signals.tenantId, tenantId)))
       .limit(1);
 
     if (!signalRecord) {
