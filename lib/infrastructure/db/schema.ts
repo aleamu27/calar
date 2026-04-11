@@ -30,6 +30,7 @@ import {
   real,
 } from 'drizzle-orm/pg-core';
 import { relations, sql } from 'drizzle-orm';
+import type { TenantSettings } from '../../core/interfaces/tenant';
 
 // ============================================================================
 // ENUMS
@@ -534,20 +535,8 @@ export const embeddingsRelations = relations(embeddings, ({ one }) => ({
 // TYPE EXPORTS
 // ============================================================================
 
-export interface TenantSettings {
-  timezone?: string;
-  scoreThreshold?: number;
-  highValuePages?: string[];
-  branding?: {
-    logo?: string;
-    primaryColor?: string;
-  };
-  features?: {
-    enrichment?: boolean;
-    integrations?: boolean;
-    semanticSearch?: boolean;
-  };
-}
+// Re-export TenantSettings from core
+export type { TenantSettings } from '../../core/interfaces/tenant';
 
 export interface ExternalIds {
   hubspotId?: string;
