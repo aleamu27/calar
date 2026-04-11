@@ -1,15 +1,14 @@
 /**
- * Dashboard Queries v2.0
+ * Dashboard Queries v3.0
  * Server-side data aggregation for the Oracle Dashboard.
- * All queries use raw SQL to avoid ORM-related GROUP BY issues.
- * BUILD: 2026-04-11-v2
+ * Uses raw PostgreSQL queries - completely bypasses Drizzle ORM.
+ * BUILD: 2026-04-11-v3
  */
 
-import { sql } from 'drizzle-orm';
-import { db } from '../../infrastructure/db/client';
+import { rawQuery } from '../../infrastructure/db/client';
 
 // Version marker for debugging deployment issues
-console.log('[Dashboard Queries] Version 2.0 - Raw SQL only');
+console.log('[Dashboard Queries] Version 3.0 - Pure PostgreSQL');
 
 export type DateRange = '7d' | '30d' | '90d' | 'all';
 
@@ -46,49 +45,50 @@ export async function getKPIMetrics(range: DateRange): Promise<KPIMetrics> {
   const dateFilter = getDateFilter(range);
 
   // Total leads
-  const leadsResult = await db.execute<{ count: string }>(
-    dateFilter
-      ? sql`SELECT COUNT(*)::text as count FROM leads WHERE converted_at >= ${dateFilter}`
-      : sql`SELECT COUNT(*)::text as count FROM leads`
-  );
-  const totalLeads = parseInt(leadsResult.rows[0]?.count ?? '0', 10);
+  const leadsResult = dateFilter
+    ? await rawQuery<{ count: string }>(
+        'SELECT COUNT(*)::text as count FROM leads WHERE converted_at >= $1',
+        [dateFilter]
+      )
+    : await rawQuery<{ count: string }>('SELECT COUNT(*)::text as count FROM leads');
+  const totalLeads = parseInt(leadsResult[0]?.count ?? '0', 10);
 
   // Total visitors
-  const visitorsResult = await db.execute<{ count: string }>(
-    dateFilter
-      ? sql`SELECT COUNT(DISTINCT id)::text as count FROM visitors WHERE first_seen_at >= ${dateFilter}`
-      : sql`SELECT COUNT(DISTINCT id)::text as count FROM visitors`
-  );
-  const totalVisitors = parseInt(visitorsResult.rows[0]?.count ?? '0', 10);
+  const visitorsResult = dateFilter
+    ? await rawQuery<{ count: string }>(
+        'SELECT COUNT(DISTINCT id)::text as count FROM visitors WHERE first_seen_at >= $1',
+        [dateFilter]
+      )
+    : await rawQuery<{ count: string }>('SELECT COUNT(DISTINCT id)::text as count FROM visitors');
+  const totalVisitors = parseInt(visitorsResult[0]?.count ?? '0', 10);
 
   // Conversion rate
   const conversionRate = totalVisitors > 0 ? (totalLeads / totalVisitors) * 100 : 0;
 
   // Top channel
-  const topChannelResult = await db.execute<{ source: string; count: string }>(
-    dateFilter
-      ? sql`
-          SELECT a.utm_source as source, COUNT(*)::text as count
-          FROM leads l
-          INNER JOIN attributions a ON l.visitor_id = a.visitor_id
-          WHERE a.utm_source IS NOT NULL AND l.converted_at >= ${dateFilter}
-          GROUP BY a.utm_source
-          ORDER BY COUNT(*) DESC
-          LIMIT 1
-        `
-      : sql`
-          SELECT a.utm_source as source, COUNT(*)::text as count
-          FROM leads l
-          INNER JOIN attributions a ON l.visitor_id = a.visitor_id
-          WHERE a.utm_source IS NOT NULL
-          GROUP BY a.utm_source
-          ORDER BY COUNT(*) DESC
-          LIMIT 1
-        `
-  );
+  const topChannelResult = dateFilter
+    ? await rawQuery<{ source: string; count: string }>(
+        `SELECT a.utm_source as source, COUNT(*)::text as count
+         FROM leads l
+         INNER JOIN attributions a ON l.visitor_id = a.visitor_id
+         WHERE a.utm_source IS NOT NULL AND l.converted_at >= $1
+         GROUP BY a.utm_source
+         ORDER BY COUNT(*) DESC
+         LIMIT 1`,
+        [dateFilter]
+      )
+    : await rawQuery<{ source: string; count: string }>(
+        `SELECT a.utm_source as source, COUNT(*)::text as count
+         FROM leads l
+         INNER JOIN attributions a ON l.visitor_id = a.visitor_id
+         WHERE a.utm_source IS NOT NULL
+         GROUP BY a.utm_source
+         ORDER BY COUNT(*) DESC
+         LIMIT 1`
+      );
 
-  const topChannel = topChannelResult.rows[0]?.source
-    ? { source: topChannelResult.rows[0].source, count: parseInt(topChannelResult.rows[0].count, 10) }
+  const topChannel = topChannelResult[0]?.source
+    ? { source: topChannelResult[0].source, count: parseInt(topChannelResult[0].count, 10) }
     : null;
 
   // Period change
@@ -111,15 +111,17 @@ async function calculatePeriodChange(range: DateRange): Promise<number> {
   const currentStart = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
   const previousStart = new Date(currentStart.getTime() - days * 24 * 60 * 60 * 1000);
 
-  const currentResult = await db.execute<{ count: string }>(
-    sql`SELECT COUNT(*)::text as count FROM leads WHERE converted_at >= ${currentStart}`
+  const currentResult = await rawQuery<{ count: string }>(
+    'SELECT COUNT(*)::text as count FROM leads WHERE converted_at >= $1',
+    [currentStart]
   );
-  const current = parseInt(currentResult.rows[0]?.count ?? '0', 10);
+  const current = parseInt(currentResult[0]?.count ?? '0', 10);
 
-  const previousResult = await db.execute<{ count: string }>(
-    sql`SELECT COUNT(*)::text as count FROM leads WHERE converted_at >= ${previousStart} AND converted_at < ${currentStart}`
+  const previousResult = await rawQuery<{ count: string }>(
+    'SELECT COUNT(*)::text as count FROM leads WHERE converted_at >= $1 AND converted_at < $2',
+    [previousStart, currentStart]
   );
-  const previous = parseInt(previousResult.rows[0]?.count ?? '0', 10);
+  const previous = parseInt(previousResult[0]?.count ?? '0', 10);
 
   if (previous === 0) return current > 0 ? 100 : 0;
   return Math.round(((current - previous) / previous) * 100);
@@ -150,41 +152,52 @@ export async function getLeadsWithAttribution(
   const dateFilter = getDateFilter(range);
 
   // Get leads with first attribution (using DISTINCT ON to avoid duplicates)
-  const dataResult = await db.execute<{
-    id: string;
-    email: string;
-    name: string | null;
-    company: string | null;
-    converted_at: Date;
-    utm_source: string | null;
-    utm_medium: string | null;
-    utm_campaign: string | null;
-    referrer: string | null;
-    landing_page: string | null;
-  }>(
-    dateFilter
-      ? sql`
-          SELECT DISTINCT ON (l.id)
-            l.id, l.email, l.name, l.company, l.converted_at,
-            a.utm_source, a.utm_medium, a.utm_campaign, a.referrer, a.landing_page
-          FROM leads l
-          LEFT JOIN attributions a ON l.visitor_id = a.visitor_id
-          WHERE l.converted_at >= ${dateFilter}
-          ORDER BY l.id, a.captured_at DESC
-          LIMIT ${limit} OFFSET ${offset}
-        `
-      : sql`
-          SELECT DISTINCT ON (l.id)
-            l.id, l.email, l.name, l.company, l.converted_at,
-            a.utm_source, a.utm_medium, a.utm_campaign, a.referrer, a.landing_page
-          FROM leads l
-          LEFT JOIN attributions a ON l.visitor_id = a.visitor_id
-          ORDER BY l.id, a.captured_at DESC
-          LIMIT ${limit} OFFSET ${offset}
-        `
-  );
+  const dataResult = dateFilter
+    ? await rawQuery<{
+        id: string;
+        email: string;
+        name: string | null;
+        company: string | null;
+        converted_at: Date;
+        utm_source: string | null;
+        utm_medium: string | null;
+        utm_campaign: string | null;
+        referrer: string | null;
+        landing_page: string | null;
+      }>(
+        `SELECT DISTINCT ON (l.id)
+           l.id, l.email, l.name, l.company, l.converted_at,
+           a.utm_source, a.utm_medium, a.utm_campaign, a.referrer, a.landing_page
+         FROM leads l
+         LEFT JOIN attributions a ON l.visitor_id = a.visitor_id
+         WHERE l.converted_at >= $1
+         ORDER BY l.id, a.captured_at DESC
+         LIMIT $2 OFFSET $3`,
+        [dateFilter, limit, offset]
+      )
+    : await rawQuery<{
+        id: string;
+        email: string;
+        name: string | null;
+        company: string | null;
+        converted_at: Date;
+        utm_source: string | null;
+        utm_medium: string | null;
+        utm_campaign: string | null;
+        referrer: string | null;
+        landing_page: string | null;
+      }>(
+        `SELECT DISTINCT ON (l.id)
+           l.id, l.email, l.name, l.company, l.converted_at,
+           a.utm_source, a.utm_medium, a.utm_campaign, a.referrer, a.landing_page
+         FROM leads l
+         LEFT JOIN attributions a ON l.visitor_id = a.visitor_id
+         ORDER BY l.id, a.captured_at DESC
+         LIMIT $1 OFFSET $2`,
+        [limit, offset]
+      );
 
-  const data: DashboardLead[] = dataResult.rows.map((row) => ({
+  const data: DashboardLead[] = dataResult.map((row) => ({
     id: row.id,
     email: row.email,
     name: row.name,
@@ -198,15 +211,16 @@ export async function getLeadsWithAttribution(
   }));
 
   // Get total count
-  const totalResult = await db.execute<{ count: string }>(
-    dateFilter
-      ? sql`SELECT COUNT(*)::text as count FROM leads WHERE converted_at >= ${dateFilter}`
-      : sql`SELECT COUNT(*)::text as count FROM leads`
-  );
+  const totalResult = dateFilter
+    ? await rawQuery<{ count: string }>(
+        'SELECT COUNT(*)::text as count FROM leads WHERE converted_at >= $1',
+        [dateFilter]
+      )
+    : await rawQuery<{ count: string }>('SELECT COUNT(*)::text as count FROM leads');
 
   return {
     data,
-    total: parseInt(totalResult.rows[0]?.count ?? '0', 10),
+    total: parseInt(totalResult[0]?.count ?? '0', 10),
   };
 }
 
@@ -223,28 +237,27 @@ export interface ChannelPerformance {
 export async function getChannelPerformance(range: DateRange): Promise<ChannelPerformance[]> {
   const dateFilter = getDateFilter(range);
 
-  const channelResult = await db.execute<{ source: string; lead_count: string }>(
-    dateFilter
-      ? sql`
-          SELECT COALESCE(a.utm_source, 'Direct') as source, COUNT(DISTINCT l.id)::text as lead_count
-          FROM leads l
-          LEFT JOIN attributions a ON l.visitor_id = a.visitor_id
-          WHERE l.converted_at >= ${dateFilter}
-          GROUP BY COALESCE(a.utm_source, 'Direct')
-          ORDER BY COUNT(DISTINCT l.id) DESC
-        `
-      : sql`
-          SELECT COALESCE(a.utm_source, 'Direct') as source, COUNT(DISTINCT l.id)::text as lead_count
-          FROM leads l
-          LEFT JOIN attributions a ON l.visitor_id = a.visitor_id
-          GROUP BY COALESCE(a.utm_source, 'Direct')
-          ORDER BY COUNT(DISTINCT l.id) DESC
-        `
-  );
+  const channelResult = dateFilter
+    ? await rawQuery<{ source: string; lead_count: string }>(
+        `SELECT COALESCE(a.utm_source, 'Direct') as source, COUNT(DISTINCT l.id)::text as lead_count
+         FROM leads l
+         LEFT JOIN attributions a ON l.visitor_id = a.visitor_id
+         WHERE l.converted_at >= $1
+         GROUP BY COALESCE(a.utm_source, 'Direct')
+         ORDER BY COUNT(DISTINCT l.id) DESC`,
+        [dateFilter]
+      )
+    : await rawQuery<{ source: string; lead_count: string }>(
+        `SELECT COALESCE(a.utm_source, 'Direct') as source, COUNT(DISTINCT l.id)::text as lead_count
+         FROM leads l
+         LEFT JOIN attributions a ON l.visitor_id = a.visitor_id
+         GROUP BY COALESCE(a.utm_source, 'Direct')
+         ORDER BY COUNT(DISTINCT l.id) DESC`
+      );
 
-  const total = channelResult.rows.reduce((sum, ch) => sum + parseInt(ch.lead_count, 10), 0);
+  const total = channelResult.reduce((sum, ch) => sum + parseInt(ch.lead_count, 10), 0);
 
-  return channelResult.rows.map((channel) => ({
+  return channelResult.map((channel) => ({
     source: channel.source,
     leadCount: parseInt(channel.lead_count, 10),
     percentage: total > 0 ? Math.round((parseInt(channel.lead_count, 10) / total) * 100) : 0,
@@ -264,24 +277,23 @@ export async function getLeadTrend(range: DateRange): Promise<LeadTrend[]> {
   const dateFilter = getDateFilter(range);
   const dateFormat = range === '90d' ? 'YYYY-"W"IW' : 'YYYY-MM-DD';
 
-  const trendResult = await db.execute<{ date: string; count: string }>(
-    dateFilter
-      ? sql`
-          SELECT TO_CHAR(converted_at, ${dateFormat}) as date, COUNT(*)::text as count
-          FROM leads
-          WHERE converted_at >= ${dateFilter}
-          GROUP BY TO_CHAR(converted_at, ${dateFormat})
-          ORDER BY TO_CHAR(converted_at, ${dateFormat})
-        `
-      : sql`
-          SELECT TO_CHAR(converted_at, ${dateFormat}) as date, COUNT(*)::text as count
-          FROM leads
-          GROUP BY TO_CHAR(converted_at, ${dateFormat})
-          ORDER BY TO_CHAR(converted_at, ${dateFormat})
-        `
-  );
+  const trendResult = dateFilter
+    ? await rawQuery<{ date: string; count: string }>(
+        `SELECT TO_CHAR(converted_at, '${dateFormat}') as date, COUNT(*)::text as count
+         FROM leads
+         WHERE converted_at >= $1
+         GROUP BY TO_CHAR(converted_at, '${dateFormat}')
+         ORDER BY TO_CHAR(converted_at, '${dateFormat}')`,
+        [dateFilter]
+      )
+    : await rawQuery<{ date: string; count: string }>(
+        `SELECT TO_CHAR(converted_at, '${dateFormat}') as date, COUNT(*)::text as count
+         FROM leads
+         GROUP BY TO_CHAR(converted_at, '${dateFormat}')
+         ORDER BY TO_CHAR(converted_at, '${dateFormat}')`
+      );
 
-  return trendResult.rows.map((row) => ({
+  return trendResult.map((row) => ({
     date: row.date,
     count: parseInt(row.count, 10),
   }));

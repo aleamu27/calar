@@ -60,3 +60,16 @@ export const db = new Proxy({} as ReturnType<typeof drizzle<typeof schema>>, {
 });
 
 export type Database = ReturnType<typeof drizzle<typeof schema>>;
+
+// Raw SQL query function that bypasses Drizzle ORM completely
+export async function rawQuery<T extends Record<string, unknown>>(
+  query: string,
+  params: unknown[] = []
+): Promise<T[]> {
+  const pool = globalForDb.pool ?? createPool();
+  if (!globalForDb.pool) {
+    globalForDb.pool = pool;
+  }
+  const result = await pool.query(query, params);
+  return result.rows as T[];
+}
