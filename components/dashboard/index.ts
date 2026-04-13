@@ -8,3 +8,4 @@ export { AttributionTable } from './attribution-table';
 export { ChannelChart } from './channel-chart';
 export { ROICalculator } from './roi-calculator';
 export { LeadTrendChart } from './lead-trend-chart';
+export { UTMBuilder } from './utm-builder';

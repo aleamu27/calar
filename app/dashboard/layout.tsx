@@ -50,11 +50,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
             {/* Nav */}
             <nav className="flex items-center gap-6">
-              <NavLink href="/dashboard" active>
-                Overview
-              </NavLink>
-              <NavLink href="/dashboard/leads">Leads</NavLink>
-              <NavLink href="/dashboard/campaigns">Campaigns</NavLink>
+              <NavLink href="/dashboard">Overview</NavLink>
+              <NavLink href="/dashboard/utm-builder">UTM Builder</NavLink>
               <NavLink href="/dashboard/settings">Settings</NavLink>
             </nav>
           </div>
