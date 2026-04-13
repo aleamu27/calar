@@ -110,7 +110,7 @@ export function UTMBuilder() {
             type="text"
             placeholder="https://dinside.no/landing-page"
             value={params.url}
-            onChange={(e) => updateParam('url', e.target.value)}
+            onChange={(value) => updateParam('url', value)}
           />
         </div>
 
@@ -124,7 +124,7 @@ export function UTMBuilder() {
               type="text"
               placeholder="google, linkedin, facebook..."
               value={params.source}
-              onChange={(e) => updateParam('source', e.target.value)}
+              onChange={(value) => updateParam('source', value)}
               list="source-suggestions"
             />
             <datalist id="source-suggestions">
@@ -143,7 +143,7 @@ export function UTMBuilder() {
               type="text"
               placeholder="cpc, paid_social, email..."
               value={params.medium}
-              onChange={(e) => updateParam('medium', e.target.value)}
+              onChange={(value) => updateParam('medium', value)}
               list="medium-suggestions"
             />
             <datalist id="medium-suggestions">
@@ -164,7 +164,7 @@ export function UTMBuilder() {
             type="text"
             placeholder="spring_sale, product_launch, webinar_2026..."
             value={params.campaign}
-            onChange={(e) => updateParam('campaign', e.target.value)}
+            onChange={(value) => updateParam('campaign', value)}
           />
           <p className="text-xs text-slate-500 mt-1">Navn på kampanjen</p>
         </div>
@@ -179,7 +179,7 @@ export function UTMBuilder() {
               type="text"
               placeholder="analytics software..."
               value={params.term}
-              onChange={(e) => updateParam('term', e.target.value)}
+              onChange={(value) => updateParam('term', value)}
             />
             <p className="text-xs text-slate-500 mt-1">For betalte søkekampanjer</p>
           </div>
@@ -192,7 +192,7 @@ export function UTMBuilder() {
               type="text"
               placeholder="blue_button, hero_video..."
               value={params.content}
-              onChange={(e) => updateParam('content', e.target.value)}
+              onChange={(value) => updateParam('content', value)}
             />
             <p className="text-xs text-slate-500 mt-1">For A/B-testing</p>
           </div>
