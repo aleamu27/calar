@@ -8,6 +8,19 @@
 
 import { cookies } from 'next/headers';
 import { NextResponse, type NextRequest } from 'next/server';
+
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, X-API-Key, Authorization',
+};
+
+export async function OPTIONS(): Promise<NextResponse> {
+  return new NextResponse(null, {
+    status: 204,
+    headers: CORS_HEADERS,
+  });
+}
 import {
   LeadCaptureService,
   LeadCaptureValidationError,
@@ -113,7 +126,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             intelligence: intelligenceResult,
           },
         },
-        { status: 201 }
+        { status: 201, headers: CORS_HEADERS }
       );
     });
   } catch (error) {
@@ -186,7 +199,7 @@ function handleError(error: unknown): NextResponse {
         error: 'Validation failed',
         details: error.errors,
       },
-      { status: 400 }
+      { status: 400, headers: CORS_HEADERS }
     );
   }
 
@@ -201,6 +214,6 @@ function errorResponse(message: string, status: number): NextResponse {
       success: false,
       error: message,
     },
-    { status }
+    { status, headers: CORS_HEADERS }
   );
 }
